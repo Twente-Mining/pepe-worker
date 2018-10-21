@@ -1,0 +1,6 @@
+out/
+*.bin
+
+# Private key to read/write things.
+# Looking to just read data as an outside user? Try the API!
+secret-key-**.json
