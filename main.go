@@ -36,7 +36,6 @@ func main() {
 	flag.Parse()
 
 	fmt.Printf(`Started!
-		truffle net id: %v
 		rpc: %s
 		token address: %s
 		saleAuctionAddress: %s
