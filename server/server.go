@@ -55,6 +55,7 @@ func (srv *Server) Start() {
 		for {
 			select {
 			case <-stopCh:
+				fmt.Println("Stopping main service")
 				return
 			case <-checkPepeImages.C:
 				srv.checkPepeImages()
@@ -87,6 +88,8 @@ func (srv *Server) Start() {
 
 func (srv *Server) checkPepeImages() error {
 
+	fmt.Println("Checking pepe images")
+
 	defer srv.imageMutex.Unlock()
 	srv.imageMutex.Lock()
 
@@ -95,6 +98,8 @@ func (srv *Server) checkPepeImages() error {
 		return nil
 	}
 	count := pepeCount.Uint64()
+	fmt.Printf("Processing pepes for image building, total count: %d\n", count)
+
 	// ignore pepe 0, start from 1
 	errCount := 0
 	for	pepeId := uint64(1); pepeId < count; pepeId++ {
@@ -102,6 +107,7 @@ func (srv *Server) checkPepeImages() error {
 			fmt.Println("Too many errors, something is wrong, stopping update")
 		}
 		if !srv.imageBuilds[pepeId] {
+			fmt.Printf("Building images for pepe %d\n", pepeId)
 
 			parsedPepe, err := srv.getPepe(big.NewInt(int64(pepeId)))
 			if err != nil {
@@ -112,6 +118,8 @@ func (srv *Server) checkPepeImages() error {
 			dna := pepe.PepeDNA(parsedPepe.Genotype)
 			parsedLook := (&dna).ParsePepeDNA()
 
+			fmt.Printf("Succesfully retrieved and parsed data for pepe %d\n", pepeId)
+
 			if err := srv.handleImage(pepeId, parsedPepe, parsedLook); err != nil {
 				fmt.Println(err)
 				errCount++
@@ -120,6 +128,7 @@ func (srv *Server) checkPepeImages() error {
 
 			// Set it to true, do not rebuild next iteration.
 			srv.imageBuilds[pepeId] = true
+			fmt.Printf("Succesfully created images and pushed them to GC storage for pepe %d\n", pepeId)
 		}
 	}
 

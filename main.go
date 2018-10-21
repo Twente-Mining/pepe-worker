@@ -47,6 +47,8 @@ func main() {
 	var rawSaleAuctionToken *sale.Sale
 	var rawCozyAuctionToken *cozy.Cozy
 
+	log.Println("Connecting eth RPC client.")
+
 	ethClient := NewEthConnection(*rpcAddress)
 
 	var err error
@@ -64,6 +66,8 @@ func main() {
 		log.Fatalf("Failed to instantiate a Token contract: %v", err)
 	}
 
+	log.Println("Creating google cloud storage client.")
+
 	// Creates a client.
 	client, err := storage.NewClient(context.Background())
 	if err != nil {
@@ -71,7 +75,7 @@ func main() {
 	}
 
 	// Sets the name for the new bucket.
-	bucketName := "pepes"
+	bucketName := "pepe-img"
 
 	// Creates a Bucket instance.
 	pepeImgBucket := client.Bucket(bucketName)
@@ -103,6 +107,8 @@ func main() {
 			Pending: false,//ignore pending data.
 		},
 	}
+
+	log.Println("Starting worker.")
 
 	// Server will handle shutdown
 	srv.Start()

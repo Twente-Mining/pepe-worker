@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"context"
 	"time"
+	"strings"
 )
 
 type PepeImageCreator struct {
@@ -23,12 +24,12 @@ type PepeImageCreator struct {
 var OutputFormats = []ImgSetting{
 	{32, bimg.PNG},
 	{32, bimg.JPEG},
-	{100, bimg.PNG},
-	{100, bimg.JPEG},
-	{256, bimg.PNG},
-	{512, bimg.JPEG},
-	{256, bimg.PNG},
-	{512, bimg.JPEG},
+	//{100, bimg.PNG},
+	//{100, bimg.JPEG},
+	//{256, bimg.PNG},
+	//{512, bimg.JPEG},
+	//{256, bimg.PNG},
+	//{512, bimg.JPEG},
 }
 
 func NewPepeImageCreator(targetBucket *storage.BucketHandle) *PepeImageCreator {
@@ -102,11 +103,21 @@ func (creator *PepeImageCreator) uploadImg(filename string, imgBuf []byte, force
 	r := bytes.NewReader(imgBuf)
 	ctx, cancelFn := context.WithTimeout(context.Background(), time.Second * 3)
 	defer cancelFn()
-	wc := creator.targetBucket.Object(filename).If(storage.Conditions{DoesNotExist: !forceOverwrite}).NewWriter(ctx)
-	if _, err := io.Copy(wc, r); err != nil {
+	w := creator.targetBucket.Object(filename).If(storage.Conditions{DoesNotExist: !forceOverwrite}).NewWriter(ctx)
+	w.ObjectAttrs.CacheControl = "public, max-age=604800" // 7 days cache
+	if strings.HasSuffix(filename, ".svg") {
+		w.ObjectAttrs.ContentType = "image/svg+xml"
+	} else if strings.HasSuffix(filename, ".jpeg") {
+		w.ObjectAttrs.ContentType = "image/jpeg"
+	} else if strings.HasSuffix(filename, ".png") {
+		w.ObjectAttrs.ContentType = "image/png"
+	}
+	// Everyone can read the image
+	w.ObjectAttrs.PredefinedACL = "publicRead"
+	if _, err := io.Copy(w, r); err != nil {
 		return err
 	}
-	if err := wc.Close(); err != nil {
+	if err := w.Close(); err != nil {
 		return err
 	}
 	return nil
