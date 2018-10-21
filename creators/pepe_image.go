@@ -64,7 +64,6 @@ func (creator *PepeImageCreator) Create(pepeId uint64, pepe *pepe.Pepe, look *lo
 		return err
 	}
 
-	svgBimg := bimg.NewImage(buf.Bytes())
 	svgImgFilename := fmt.Sprintf("pepe_%d.svg", pepeId)
 	if err := creator.uploadImg(svgImgFilename, buf.Bytes(), forceOverwrite); err != nil {
 		// Ignore, likely a pre-condition of storage not being met. I.e. image already exists.
@@ -73,14 +72,15 @@ func (creator *PepeImageCreator) Create(pepeId uint64, pepe *pepe.Pepe, look *lo
 	}
 
 	for _, format := range OutputFormats {
+		// Recreate SVG for every output, to avoid quality loss due to image processing
+		svgBimg := bimg.NewImage(buf.Bytes())
 		output, err := creator.makeImg(svgBimg, format.size, format.format)
 		if err != nil {
 			return err
 		}
 		filename := format.GetFilename(pepeId)
 		if err := creator.uploadImg(filename, output, forceOverwrite); err != nil {
-			// Ignore, likely a pre-condition of storage not being met. I.e. image already exists.
-			fmt.Println("Error when writing "+filename+" to cloud storage. ", err)
+			return err
 		}
 	}
 
@@ -102,7 +102,11 @@ func (creator *PepeImageCreator) uploadImg(filename string, imgBuf []byte, force
 	r := bytes.NewReader(imgBuf)
 	ctx, cancelFn := context.WithTimeout(context.Background(), time.Second * 3)
 	defer cancelFn()
-	w := creator.targetBucket.Object(filename).If(storage.Conditions{DoesNotExist: !forceOverwrite}).NewWriter(ctx)
+	obj := creator.targetBucket.Object(filename)
+	if !forceOverwrite {
+		obj = obj.If(storage.Conditions{DoesNotExist: true})
+	}
+	w := obj.NewWriter(ctx)
 	w.ObjectAttrs.CacheControl = "public, max-age=604800" // 7 days cache
 	if strings.HasSuffix(filename, ".svg") {
 		w.ObjectAttrs.ContentType = "image/svg+xml"
@@ -117,7 +121,10 @@ func (creator *PepeImageCreator) uploadImg(filename string, imgBuf []byte, force
 		return err
 	}
 	if err := w.Close(); err != nil {
-		return err
+		// Ignore precondition fail, that's just because we're not overwriting existing files (given that forceOverwrite is false)
+		if forceOverwrite || !strings.Contains(fmt.Sprintf("%s", err), "Precondition Failed") {
+			return err
+		}
 	}
 	return nil
 }
