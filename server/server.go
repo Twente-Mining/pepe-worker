@@ -49,7 +49,7 @@ func (srv *Server) Start() {
 	srv.imageMutex = sync.Mutex{}
 
 	stopCh := make(chan string)
-	checkPepeImages := time.NewTicker(5 * time.Second)
+	checkPepeImages := time.NewTicker(10 * time.Second)
 	// Run our task in a goroutine so that it doesn't block.
 	go func() {
 		for {

@@ -22,14 +22,13 @@ type PepeImageCreator struct {
 }
 
 var OutputFormats = []ImgSetting{
-	{32, bimg.PNG},
+	// Thumbnail for special applications (icons / graphs etc.)
 	{32, bimg.JPEG},
-	//{100, bimg.PNG},
-	//{100, bimg.JPEG},
-	//{256, bimg.PNG},
-	//{512, bimg.JPEG},
-	//{256, bimg.PNG},
-	//{512, bimg.JPEG},
+	// Default size images, for normal use
+	{256, bimg.PNG},
+	{256, bimg.JPEG},
+	// Large resolution for social media, their services will make their own thumbnails
+	{1024, bimg.JPEG},
 }
 
 func NewPepeImageCreator(targetBucket *storage.BucketHandle) *PepeImageCreator {
