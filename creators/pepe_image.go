@@ -12,6 +12,7 @@ import (
 	"context"
 	"time"
 	"strings"
+	"io/ioutil"
 )
 
 type PepeImageCreator struct {
@@ -28,7 +29,8 @@ var OutputFormats = []ImgSetting{
 	{256, bimg.PNG},
 	{256, bimg.JPEG},
 	// Large resolution for social media, their services will make their own thumbnails
-	{1024, bimg.JPEG},
+	{2048, bimg.JPEG},
+	// SVG is also included, but separate (no image processing required)
 }
 
 func NewPepeImageCreator(targetBucket *storage.BucketHandle) *PepeImageCreator {
@@ -54,8 +56,14 @@ func (setting *ImgSetting) GetFilename(pepeId uint64) string {
 	return fmt.Sprintf("pepe_%d_%d.%s", pepeId, setting.size, bimg.ImageTypes[setting.format])
 }
 
+type StoreImgFn func(filename string, imgBuf []byte, forceOverwrite bool) error
+
 
 func (creator *PepeImageCreator) Create(pepeId uint64, pepe *pepe.Pepe, look *look.PepeLook, forceOverwrite bool) error {
+
+	// Switch to local storage for debugging
+	//var imgStoreFn StoreImgFn = creator.saveImg
+	var imgStoreFn StoreImgFn = creator.uploadImg
 
 	// Create the SVG
 	buf := new(bytes.Buffer)
@@ -65,7 +73,7 @@ func (creator *PepeImageCreator) Create(pepeId uint64, pepe *pepe.Pepe, look *lo
 	}
 
 	svgImgFilename := fmt.Sprintf("pepe_%d.svg", pepeId)
-	if err := creator.uploadImg(svgImgFilename, buf.Bytes(), forceOverwrite); err != nil {
+	if err := imgStoreFn(svgImgFilename, buf.Bytes(), forceOverwrite); err != nil {
 		// Ignore, likely a pre-condition of storage not being met. I.e. image already exists.
 		// If writing truely failed, then it will be fixed automatically by the next backfill.
 		fmt.Println("Error when writing "+svgImgFilename+" to cloud storage. ", err)
@@ -79,7 +87,7 @@ func (creator *PepeImageCreator) Create(pepeId uint64, pepe *pepe.Pepe, look *lo
 			return err
 		}
 		filename := format.GetFilename(pepeId)
-		if err := creator.uploadImg(filename, output, forceOverwrite); err != nil {
+		if err := imgStoreFn(filename, output, forceOverwrite); err != nil {
 			return err
 		}
 	}
@@ -92,11 +100,20 @@ func (creator *PepeImageCreator) makeImg(img *bimg.Image, size int, imgType bimg
 		Width:  size,
 		Height: size,
 		Type: imgType,
+		StripMetadata: true,
+		Compression: 9,
+		Lossless: false,
 	}
 
 	// Convert SVG to PNG
 	return img.Process(processOptions)
 }
+
+
+func (creator *PepeImageCreator) saveImg(filename string, imgBuf []byte, forceOverwrite bool) error {
+	return ioutil.WriteFile(filename, imgBuf, 0644)
+}
+
 
 func (creator *PepeImageCreator) uploadImg(filename string, imgBuf []byte, forceOverwrite bool) error {
 	r := bytes.NewReader(imgBuf)
