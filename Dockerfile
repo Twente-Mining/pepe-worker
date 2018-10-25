@@ -12,7 +12,7 @@ RUN apk add --no-cache \
 
 RUN apk add --no-cache \
   --repository http://dl-3.alpinelinux.org/alpine/edge/testing \
-  librsvg-dev glib-dev expat-dev libpng-dev fftw-dev
+  librsvg-dev glib-dev expat-dev libpng-dev fftw-dev libjpeg-turbo-dev
 
 
 ARG VIPS_VERSION=8.6.3
@@ -40,7 +40,7 @@ FROM alpine:latest
 
 RUN apk add --no-cache \
   --repository http://dl-3.alpinelinux.org/alpine/edge/testing \
-  fftw libpng librsvg expat glib libgsf
+  fftw libpng libjpeg-turbo librsvg expat glib libgsf
 
 # Add the vipslib we compiled from source in the builder
 COPY --from=builder /vips/lib/ /usr/local/lib
