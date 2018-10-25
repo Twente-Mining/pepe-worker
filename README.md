@@ -54,14 +54,13 @@ dokku config:set worker DOKKU_DOCKERFILE_START_CMD="--rpc=https://mainnet.infura
 
 
 dokku config:set worker GOOGLE_APPLICATION_CREDENTIALS="secret-key-google.json"
-dokku config:set worker DATASTORE_PROJECT_ID="cryptopepe-main"
 dokku config:set worker APP_PATH="/app/"
 
 
 dokku docker-options:add worker build "--build-arg GOOGLE_APPLICATION_CREDENTIALS=.............."
 # Replace .............. with the long base64 encoded keyfile,
 #  obtained and added to your clipboard by running this locally:
-base64 datastore-key-XXXXXXX.json | tr -d '\n' | xsel -pi
+base64 secret-key-google.json | tr -d '\n' | xsel -bi
 
 # back to local machine
 > exit
