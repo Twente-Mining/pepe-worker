@@ -1,7 +1,7 @@
 package creators
 
 import (
-	"cryptopepe.io/worker/pepe"
+	"cryptopepe.io/cryptopepe-worker/pepe"
 	"cryptopepe.io/cryptopepe-svg/builder/look"
 	"cryptopepe.io/cryptopepe-svg/builder"
 	"gopkg.in/h2non/bimg.v1"

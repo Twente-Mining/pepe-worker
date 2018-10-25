@@ -6,7 +6,7 @@ import (
   "runtime"
   "io/ioutil"
   "gopkg.in/yaml.v2"
-  "cryptopepe.io/worker/pepe"
+  "cryptopepe.io/cryptopepe-worker/pepe"
   "bytes"
   "strings"
   "math/big"

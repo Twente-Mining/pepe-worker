@@ -1,7 +1,7 @@
 package bio_gen
 
 import (
-  "cryptopepe.io/worker/pepe"
+  "cryptopepe.io/cryptopepe-worker/pepe"
   "math/big"
 )
 

@@ -2,7 +2,7 @@ package bio_gen
 
 import (
   "testing"
-  "cryptopepe.io/worker/pepe"
+  "cryptopepe.io/cryptopepe-worker/pepe"
   "math/rand"
   "fmt"
   "math/big"
