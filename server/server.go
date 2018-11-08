@@ -52,6 +52,9 @@ func (srv *Server) Start() {
 
 	srv.imageBuilds = make(map[uint64]ImageBuildStatus)
 
+	// hack; sleep for a while, just to be sure of network for supply call
+	time.Sleep(2 * time.Second)
+
 	pepeCount, err := srv.ContractSessions.PepeCallSession.TotalSupply()
 	if err != nil {
 		panic("Could not get Pepe count for initialization")
