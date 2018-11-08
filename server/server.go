@@ -24,12 +24,19 @@ type ContractSessions struct {
 	CozyAuctionCallSession *cozy.CozyCallerSession
 }
 
+type ImageBuildStatus struct {
+	// how many backfill updates to do
+	UpdatesLeft uint8
+	LastUpdateTime int64
+	Success bool
+}
+
 type ImageHandlerProps struct {
 
 	ImageCreator *creators.PepeImageCreator
 
 	// Map of all images being successfully processed or not
-	imageBuilds map[uint64]bool
+	imageBuilds map[uint64]ImageBuildStatus
 
 	// Only build one image at a time
 	imageMutex sync.Mutex
@@ -43,8 +50,23 @@ type Server struct {
 
 func (srv *Server) Start() {
 
-	// TODO: we can pre-initialize with trues to avoid unnecessary backfilling on start-up
-	srv.imageBuilds = make(map[uint64]bool)
+	srv.imageBuilds = make(map[uint64]ImageBuildStatus)
+
+	pepeCount, err := srv.ContractSessions.PepeCallSession.TotalSupply()
+	if err != nil {
+		panic("Could not get Pepe count for initialization")
+	}
+	count := pepeCount.Uint64()
+	for	pepeId := uint64(1); pepeId < count; pepeId++ {
+		if _, ok := srv.imageBuilds[pepeId]; !ok {
+			srv.imageBuilds[pepeId] = ImageBuildStatus{
+				UpdatesLeft:    0,
+				Success:        false,
+				LastUpdateTime: 0,
+			}
+		}
+	}
+
 	
 	srv.imageMutex = sync.Mutex{}
 
@@ -100,13 +122,35 @@ func (srv *Server) checkPepeImages() error {
 	count := pepeCount.Uint64()
 	fmt.Printf("Processing pepes for image building, total count: %d\n", count)
 
+	now := time.Now().Unix()
+	// wait a minute, then backfill again.
+	timeThreshold := now - 60
 	// ignore pepe 0, start from 1
 	errCount := 0
 	for	pepeId := uint64(1); pepeId < count; pepeId++ {
 		if errCount > 5 {
 			fmt.Println("Too many errors, something is wrong, stopping update")
 		}
-		if !srv.imageBuilds[pepeId] {
+		if _, ok := srv.imageBuilds[pepeId]; !ok {
+			srv.imageBuilds[pepeId] = ImageBuildStatus{
+				UpdatesLeft: 10,
+				Success: false,
+				LastUpdateTime: 0,
+			}
+		}
+		// If it is already created, but we have yet to do some backfills, and it is time to do so,
+		//  then mark it as non-success again, to force a backfill.
+		if srv.imageBuilds[pepeId].Success &&
+			srv.imageBuilds[pepeId].UpdatesLeft > 0 &&
+			srv.imageBuilds[pepeId].LastUpdateTime < timeThreshold {
+
+			srv.imageBuilds[pepeId] = ImageBuildStatus{
+				UpdatesLeft: srv.imageBuilds[pepeId].UpdatesLeft - 1,
+				Success: false,
+				LastUpdateTime: srv.imageBuilds[pepeId].LastUpdateTime,
+			}
+		}
+		if !srv.imageBuilds[pepeId].Success {
 			fmt.Printf("Building images for pepe %d\n", pepeId)
 
 			parsedPepe, err := srv.getPepe(big.NewInt(int64(pepeId)))
@@ -127,7 +171,11 @@ func (srv *Server) checkPepeImages() error {
 			}
 
 			// Set it to true, do not rebuild next iteration.
-			srv.imageBuilds[pepeId] = true
+			srv.imageBuilds[pepeId] = ImageBuildStatus{
+				UpdatesLeft: srv.imageBuilds[pepeId].UpdatesLeft,
+				Success: true,
+				LastUpdateTime: now,
+			}
 			fmt.Printf("Succesfully created images and pushed them to GC storage for pepe %d\n", pepeId)
 		}
 	}
@@ -149,7 +197,7 @@ func (srv *Server) getPepe(pepeId *big.Int) (*pepe.Pepe, error) {
 
 func (srv *Server) handleImage(pepeId uint64, parsedPepe *pepe.Pepe, parsedLook *look.PepeLook) error {
 
-	err := srv.ImageCreator.Create(pepeId, parsedPepe, parsedLook, false)
+	err := srv.ImageCreator.Create(pepeId, parsedPepe, parsedLook, true)
 	if err != nil {
 		return err
 	}
